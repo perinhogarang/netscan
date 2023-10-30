@@ -1,0 +1,52 @@
+# -*- coding: utf-8 -*-
+
+import scapy.all as scapy
+import time
+
+# Dictionary to store known IP-MAC mappings
+known_macs = {}
+
+def get_local_mac(ip):
+    arp_request = scapy.ARP(pdst=ip)
+    broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+    arp_request_broadcast = broadcast/arp_request
+    ans = scapy.srp(arp_request_broadcast, timeout=2, verbose=False)[0]
+    if ans:
+        return ans[0][1].hwsrc
+    else:
+        return None
+
+def detect_arp_spoof(target_ip, router_ip):
+    target_mac = get_local_mac(target_ip)
+    router_mac = get_local_mac(router_ip)
+
+    if target_mac and router_mac:
+        if target_mac != known_macs.get(target_ip, None) or router_mac != known_macs.get(router_ip, None):
+            return True
+    return False
+
+def main():
+    print("*" * 78)
+    print("*" + " " * 76 + "*")
+    print("* NetScan © 2023 built by Perinho Garang under Anjali Ma'am Supervision      *")
+    print("*" + " " * 76 + "*")
+    print("*" * 78)
+    target_ip = raw_input("Enter the IP of Device to Monitor >> ")
+    router_ip = raw_input("Enter the Router IP >> ")
+    
+    print("\n[+] NetScanner is monitoring the network for any suspicious ARP Spoofing attack")
+    try:
+        while True:
+            if detect_arp_spoof(target_ip, router_ip):
+                print("Alert! Possible ARP spoofing detected between {} and {}".format(target_ip, router_ip))
+
+            # Update known MAC addresses periodically (adjust time as needed)
+            known_macs[target_ip] = get_local_mac(target_ip)
+            known_macs[router_ip] = get_local_mac(router_ip)
+
+            time.sleep(3)
+    except KeyboardInterrupt:
+        print("[-] Detected CTRL + C... Quitting")
+
+if __name__ == "__main__":
+    main()
